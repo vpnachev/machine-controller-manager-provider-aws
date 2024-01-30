@@ -15,13 +15,18 @@
 package spi
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/sts"
 	corev1 "k8s.io/api/core/v1"
 
 	api "github.com/gardener/machine-controller-manager-provider-aws/pkg/aws/apis"
@@ -30,10 +35,59 @@ import (
 // PluginSPIImpl is the real implementation of SPI interface that makes the calls to the AWS SDK.
 type PluginSPIImpl struct{}
 
+func createTokenFile(token []byte, clusterName string) (string, error) {
+	tokenFile := filepath.Join(os.TempDir(), clusterName, "token")
+	if err := os.MkdirAll(filepath.Dir(tokenFile), 0700); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(tokenFile, token, os.ModeAppend); err != nil {
+		return "", err
+	}
+
+	return tokenFile, nil
+}
+
 // NewSession starts a new AWS session
 func (ms *PluginSPIImpl) NewSession(secret *corev1.Secret, region string) (*session.Session, error) {
 	var config = &aws.Config{
 		Region: aws.String(region),
+	}
+
+	if arn, ok := secret.Data[api.AWSARNKeyID]; ok && len(arn) != 0 {
+		token, ok := secret.Data[api.AWSTokenKeyID]
+		if !ok || len(token) == 0 {
+			return nil, fmt.Errorf("Web identity token must not be empty")
+		}
+
+		path, err := createTokenFile(token, secret.Namespace)
+		if err != nil {
+			return nil, err
+		}
+
+		sess, err := session.NewSession()
+		if err != nil {
+			return nil, err
+		}
+
+		webIDProvider := stscreds.NewWebIdentityRoleProviderWithToken(
+			sts.New(sess),
+			string(arn),
+			secret.Namespace,
+			stscreds.FetchTokenPath(path),
+		)
+
+		creds, err := webIDProvider.Retrieve()
+		if err != nil {
+			return nil, err
+		}
+
+		cc := credentials.NewStaticCredentialsFromCreds(creds)
+		config := &aws.Config{
+			Credentials: cc,
+			Region:      aws.String(region),
+		}
+
+		return session.NewSession(config)
 	}
 
 	accessKeyID := extractCredentialsFromData(secret.Data, api.AWSAccessKeyID, api.AWSAlternativeAccessKeyID)

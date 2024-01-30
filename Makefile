@@ -19,14 +19,14 @@ IMAGE_TAG           := $(shell cat VERSION)
 PROVIDER_NAME       := AWS
 PROJECT_NAME        := gardener
 CONTROL_NAMESPACE	:=
-CONTROL_KUBECONFIG  := 
-TARGET_KUBECONFIG   := 
+CONTROL_KUBECONFIG  :=
+TARGET_KUBECONFIG   :=
 
 # Below ones are used in tests
 MACHINECLASS_V1 	:= dev/machineclassv1.yaml
-MACHINECLASS_V2 	:= 
-MCM_IMAGE			:= 
-MC_IMAGE			:= 
+MACHINECLASS_V2 	:=
+MCM_IMAGE			:=
+MC_IMAGE			:=
 # MCM_IMAGE			:= eu.gcr.io/gardener-project/gardener/machine-controller-manager:v0.39.0
 # MC_IMAGE			:= $(IMAGE_REPOSITORY):v0.7.0
 LEADER_ELECT 	    := "true"
@@ -97,7 +97,7 @@ update-dependencies:
 .PHONY: test-unit
 test-unit:
 	@SKIP_INTEGRATION_TESTS=X .ci/test
-	
+
 .PHONY: test-integration
 test-integration:
 	@if [[ -f $(PWD)/$(CONTROL_KUBECONFIG) ]]; then export CONTROL_KUBECONFIG=$(PWD)/$(CONTROL_KUBECONFIG); fi; \

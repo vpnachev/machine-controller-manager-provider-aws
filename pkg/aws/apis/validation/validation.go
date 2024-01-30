@@ -28,6 +28,7 @@ import (
 	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
+	api "github.com/gardener/machine-controller-manager-provider-aws/pkg/aws/apis"
 	awsapi "github.com/gardener/machine-controller-manager-provider-aws/pkg/aws/apis"
 )
 
@@ -225,14 +226,21 @@ func ValidateSecret(secret *corev1.Secret, fldPath *field.Path) field.ErrorList 
 	if secret == nil {
 		allErrs = append(allErrs, field.Required(fldPath.Child(""), "secretRef is required"))
 	} else {
-		if "" == string(secret.Data[awsapi.AWSAccessKeyID]) && "" == string(secret.Data[awsapi.AWSAlternativeAccessKeyID]) {
-			allErrs = append(allErrs, field.Required(fldPath.Child("AWSAccessKeyID"), fmt.Sprintf("Mention atleast %s or %s", awsapi.AWSAccessKeyID, awsapi.AWSAlternativeAccessKeyID)))
-		}
-		if "" == string(secret.Data[awsapi.AWSSecretAccessKey]) && "" == string(secret.Data[awsapi.AWSAlternativeSecretAccessKey]) {
-			allErrs = append(allErrs, field.Required(fldPath.Child("AWSSecretAccessKey"), fmt.Sprintf("Mention atleast %s or %s", awsapi.AWSSecretAccessKey, awsapi.AWSAlternativeSecretAccessKey)))
-		}
-		if "" == string(secret.Data["userData"]) {
-			allErrs = append(allErrs, field.Required(fldPath.Child("userData"), "Mention userData"))
+		if arn, ok := secret.Data[api.AWSARNKeyID]; ok && len(arn) != 0 {
+			token, ok := secret.Data[api.AWSTokenKeyID]
+			if !ok || len(token) == 0 {
+				allErrs = append(allErrs, field.Required(fldPath.Child("token"), "When web identity authentication is used, token must be present and not empty"))
+			}
+		} else {
+			if "" == string(secret.Data[awsapi.AWSAccessKeyID]) && "" == string(secret.Data[awsapi.AWSAlternativeAccessKeyID]) {
+				allErrs = append(allErrs, field.Required(fldPath.Child("AWSAccessKeyID"), fmt.Sprintf("Mention atleast %s or %s", awsapi.AWSAccessKeyID, awsapi.AWSAlternativeAccessKeyID)))
+			}
+			if "" == string(secret.Data[awsapi.AWSSecretAccessKey]) && "" == string(secret.Data[awsapi.AWSAlternativeSecretAccessKey]) {
+				allErrs = append(allErrs, field.Required(fldPath.Child("AWSSecretAccessKey"), fmt.Sprintf("Mention atleast %s or %s", awsapi.AWSSecretAccessKey, awsapi.AWSAlternativeSecretAccessKey)))
+			}
+			if "" == string(secret.Data["userData"]) {
+				allErrs = append(allErrs, field.Required(fldPath.Child("userData"), "Mention userData"))
+			}
 		}
 	}
 

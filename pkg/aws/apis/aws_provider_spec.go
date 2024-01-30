@@ -29,6 +29,11 @@ const (
 	// access key).
 	AWSAlternativeSecretAccessKey = "secretAccessKey"
 
+	// AWSARNKeyID is a constant for a key name that is part of the AWS cloud credentials.
+	AWSARNKeyID = "arn"
+	// AWSTokenKeyID is a constant for a key name that is part of the AWS cloud credentials.
+	AWSTokenKeyID = "token"
+
 	// ClusterTagPrefix is a constanst for identifying a tag containing the cluster name
 	ClusterTagPrefix = "kubernetes.io/cluster/"
 	// RoleTagPrefix is a constanst for identifying a tag containing the node role
