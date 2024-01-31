@@ -15,6 +15,7 @@
 package spi
 
 import (
+	"encoding/base32"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -35,8 +36,8 @@ import (
 // PluginSPIImpl is the real implementation of SPI interface that makes the calls to the AWS SDK.
 type PluginSPIImpl struct{}
 
-func createTokenFile(token []byte, clusterName string) (string, error) {
-	tokenFile := filepath.Join(os.TempDir(), clusterName, "token")
+func createTokenFile(token []byte, clusterID string) (string, error) {
+	tokenFile := filepath.Join(os.TempDir(), clusterID, "token")
 	if err := os.MkdirAll(filepath.Dir(tokenFile), 0700); err != nil {
 		return "", err
 	}
@@ -59,7 +60,11 @@ func (ms *PluginSPIImpl) NewSession(secret *corev1.Secret, region string) (*sess
 			return nil, fmt.Errorf("Web identity token must not be empty")
 		}
 
-		path, err := createTokenFile(token, secret.Namespace)
+		id := make([]byte, base32.StdEncoding.EncodedLen(len(token)))
+		base32.StdEncoding.Encode(id, token)
+		idS := string(id)[:8]
+
+		path, err := createTokenFile(token, idS)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +77,7 @@ func (ms *PluginSPIImpl) NewSession(secret *corev1.Secret, region string) (*sess
 		webIDProvider := stscreds.NewWebIdentityRoleProviderWithToken(
 			sts.New(sess),
 			string(arn),
-			secret.Namespace,
+			idS,
 			stscreds.FetchTokenPath(path),
 		)
 
